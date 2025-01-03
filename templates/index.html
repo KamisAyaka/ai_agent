@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能老师助手</title>
+</head>
+<body>
+    <h1>请选择一个老师：</h1>
+    <form id="teacher-form">
+        <input type="radio" id="math" name="app_choice" value="1" checked>
+        <label for="math">数学老师</label><br>
+        <input type="radio" id="chinese" name="app_choice" value="2">
+        <label for="chinese">语文老师</label><br>
+        <input type="radio" id="english" name="app_choice" value="3">
+        <label for="english">英语老师</label><br>
+        <input type="radio" id="combined" name="app_choice" value="4">
+        <label for="combined">综合老师</label><br>
+        <br>
+        <input type="text" id="query" name="query" placeholder="请输入您的问题">
+        <button type="submit">提交</button>
+    </form>
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('teacher-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const query = document.getElementById('query').value;
+            const appChoice = document.querySelector('input[name="app_choice"]:checked').value;
+
+            fetch('/get_response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `query=${encodeURIComponent(query)}&app_choice=${encodeURIComponent(appChoice)}`
+            })
+            .then(response => response.json())  // 修改这里，使用 response.json()
+            .then(data => {
+                document.getElementById('response').innerText = '回答: ' + data.response;  // 提取 response 字段
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>
