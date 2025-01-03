@@ -38,7 +38,7 @@ def main():
     app = choose_app()  # 初始选择老师
 
     while True:
-        query = input("请输入您的问题（或输入 'exit' 退出）：")
+        query = input("请输入您的问题（或输入 'exit' 退出,输入 'change' 更换老师）：")
         if query.lower() == 'exit':
             break
         elif query.lower() == 'change':
