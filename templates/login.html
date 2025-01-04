@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欢迎使用智能教师</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #007bff;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], input[type="password"] {
+            display: block;
+            width: 90%;
+            margin: 10px auto;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            display: block;
+            width: 90%;
+            margin: 10px auto;
+            padding: 10px;
+            background: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        a {
+            color: #ffc107;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .error, .message {
+            margin: 10px auto;
+            padding: 10px;
+            border-radius: 5px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .message {
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>欢迎使用智能教师</h1>
+        <form id="login-form">
+            <input type="text" id="login-username" placeholder="用户名" required>
+            <input type="password" id="login-password" placeholder="密码" required>
+            <button type="submit">登录</button>
+        </form>
+        <a href="/register">新用户注册</a>
+
+        <div id="message" class="message" style="display: none;"></div>
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const messageBox = document.getElementById('message');
+        const errorBox = document.getElementById('error');
+
+        // 显示消息
+        function showMessage(message) {
+            messageBox.innerText = message;
+            messageBox.style.display = 'block';
+            errorBox.style.display = 'none';
+        }
+
+        // 显示错误
+        function showError(error) {
+            errorBox.innerText = error;
+            errorBox.style.display = 'block';
+            messageBox.style.display = 'none';
+        }
+
+        // 登录表单提交
+        loginForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showMessage(data.message);
+                    setTimeout(() => window.location.href = '/dashboard', 1000);
+                }
+            })
+            .catch(error => showError('网络错误，请稍后重试！'));
+        });
+    </script>
+</body>
+</html>
