@@ -19,10 +19,72 @@
         <br>
         <input type="text" id="query" name="query" placeholder="请输入您的问题">
         <button type="submit">提交</button>
+        <button id="save-conversation-btn">保存对话</button> <!-- 添加保存对话按钮 -->
     </form>
     <div id="response"></div>
+    <div id="conversation-history"></div> <!-- 添加用于显示历史对话的区域 -->
 
     <script>
+        // 读取Cookie中的用户标识符
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // 设置Cookie中的用户标识符
+        function setCookie(name, value, days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + date.toUTCString();
+            document.cookie = name + "=" + value + ";" + expires + ";path=/";
+        }
+
+        // 获取用户标识符，如果没有则生成一个新的
+        let userId = getCookie('user_id');
+        if (!userId) {
+            userId = Math.random().toString(36).substr(2, 9); // 生成一个随机的用户标识符
+            setCookie('user_id', userId, 365); // 设置Cookie，有效期为一年
+            alert('欢迎首次访问！已为您生成一个用户标识符。'); // 提示用户生成了新的用户标识符
+        }
+
+        // 在每次对话结束后，确保用户标识符存储在Cookie中
+        function saveConversation(conversation) {
+            // 保存对话记录到后端
+            fetch('/save_conversation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId: userId, conversation: conversation })
+            });
+        }
+
+        // 加载历史对话记录
+        function loadConversation() {
+            fetch('/load_conversation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.conversation) {
+                    document.getElementById('conversation-history').innerText = data.conversation;
+                } else if (data.error) {
+                    console.error(data.error);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // 页面加载时加载历史对话记录
+        document.addEventListener("DOMContentLoaded", function() {
+            loadConversation();
+        });
+
         document.getElementById('teacher-form').addEventListener('submit', function(event) {
             event.preventDefault();
             const query = document.getElementById('query').value;
@@ -40,6 +102,11 @@
                 document.getElementById('response').innerText = '回答: ' + data.response;  // 提取 response 字段
             })
             .catch(error => console.error('Error:', error));
+        });
+
+        document.getElementById('save-conversation-btn').addEventListener('click', function() { // 添加保存对话按钮的点击事件
+            const conversation = document.getElementById('response').innerText;
+            saveConversation(conversation);
         });
     </script>
 </body>

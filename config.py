@@ -12,3 +12,8 @@ model = ChatZhipuAI(
     model="glm-4",
     temperature=0.5,
 )
+
+OBS_ACCESS_KEY = 'JMZUN3ANMT1YOGL7FGQK'
+OBS_SECRET_KEY = 'ENzg76QSnUHKIThEywqlqakZEx6qXqtNYnaazM6f'
+OBS_BUCKET_NAME = 'test-e795'
+Endpoint = 'https://obs.cn-east-3.myhuaweicloud.com'
