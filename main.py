@@ -110,7 +110,7 @@ def login():
     elif user['password'] != password:
         return jsonify({"error": "密码错误，请重试！"}), 400
     else:
-        session['username'] = username
+        session['username'] = username  # 登录成功后将用户名存入 session
         return jsonify({"message": f"欢迎回来，{username}！"})
 
 
@@ -133,7 +133,7 @@ def register():
         return jsonify({"message": f"注册成功，欢迎您，{username}！"})
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET'])
 def logout():
     session.pop('username', None)
     return redirect(url_for('index'))
@@ -159,41 +159,60 @@ def get_response_route():
 
 @app.route('/save_conversation', methods=['POST'])
 def save_conversation():
-    data = request.get_json()
-    user_id = data.get('userId')
-    conversation = data.get('conversation')
+    username = session['username'] 
 
-    if user_id and conversation:
-        try:
-            obs_client.putContent(bucketName=OBS_BUCKET_NAME, objectKey=f'{user_id}_conversation.txt',
-                                  content=conversation)
-            return jsonify({'status': 'success'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Invalid request data'}), 400
+    data = request.get_json()
+    conversation = data.get('conversation') 
+
+    if not conversation:
+        return jsonify({'error': '对话内容不能为空'}), 400
+
+    object_key = f'users/{username}.json'
+
+    try:
+        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+
+        if resp.status < 300:
+            user_data_json = resp.body['buffer'].decode('utf-8')
+            user_data = json.loads(user_data_json)
+        else:
+            user_data = {}
+
+        if 'conversation' in user_data:
+            user_data['conversation'] += '\n' + conversation
+        else:
+            user_data['conversation'] = conversation
+
+        # 保存更新后的数据到 OBS
+        obs_client.putContent(
+            bucketName=OBS_BUCKET_NAME,
+            objectKey=object_key,
+            content=json.dumps(user_data)
+        )
+        
+        return jsonify({'status': 'success'})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/load_conversation', methods=['POST'])
 def load_conversation():
-    data = request.get_json()
-    user_id = data.get('userId')
+    username = session['username'] 
 
-    if user_id:
-        try:
-            loader = OBSFileLoader(
-                bucket=OBS_BUCKET_NAME,
-                key=f'users/{user_id}.json',
-                endpoint=Endpoint,
-                config=config
-            )
-            response = loader.load()
-            conversation = response['Body'].read().decode('utf-8')
-            return jsonify({'conversation': conversation})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Invalid request data'}), 400
+    object_key = f'users/{username}.json'
+
+    try:
+        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+        if resp.status < 300:
+            conversation = json.loads(resp.body['buffer'].decode('utf-8'))
+            c = conversation['conversation']
+            return jsonify({'conversation': c})
+        else:
+            return jsonify({'error': f"加载对话失败: {resp.error_code} {resp.error_msg}"}), 400
+    except Exception as e:
+        print(f"加载对话时出错: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == "__main__":
