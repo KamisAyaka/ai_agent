@@ -2,6 +2,8 @@ from config import model
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
+from langgraph.prebuilt import ToolNode, tools_condition
+from langchain_community.tools.tavily_search import TavilySearchResults
 
 # 定义数学老师的graph
 workflow_math = StateGraph(state_schema=MessagesState)
@@ -9,7 +11,7 @@ workflow_math = StateGraph(state_schema=MessagesState)
 
 # 定义数学老师的函数
 def call_math_teacher(state: MessagesState):
-    response = model.invoke(state["messages"])
+    response = llm_with_tools.invoke(state["messages"])
     return {"messages": response}
 
 
@@ -32,9 +34,26 @@ def pretrain_math_teacher():
 # 调用预训练函数
 pretrain_math_teacher()
 
+# 添加TavilySearchResults工具
+tool = TavilySearchResults(max_results=2)
+tools = [tool]
+llm = model
+llm_with_tools = llm.bind_tools(tools)
+
 # 定义数学老师的节点
 workflow_math.add_edge(START, "math_teacher")
 workflow_math.add_node("math_teacher", call_math_teacher)
+
+# 添加工具节点
+tool_node = ToolNode(tools=[tool])
+workflow_math.add_node("tools", tool_node)
+
+# 添加条件边
+workflow_math.add_conditional_edges(
+    "math_teacher",
+    tools_condition,
+)
+workflow_math.add_edge("tools", "math_teacher")
 
 # 添加记忆
 memory = MemorySaver()
