@@ -4,10 +4,10 @@ from langchain_community.chat_models import ChatZhipuAI
 
 # 设置环境变量
 # 请将密钥替换为你自己的密钥，可以在智谱官网申请。LANGCHAIN对应的密钥也可以在其官网上申请。
-os.environ["ZHIPUAI_API_KEY"] = "1cb56cec680228ed7b3a9f33d9e1b3b4.fln59ZZnsCVNEGlj"
+os.environ["ZHIPUAI_API_KEY"] = "d8a9ddca79df44c391f0972bdfaefa91.3vCAIq5Tw6mLdqSi"
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["TAVILY_API_KEY"] = "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"
-os.environ["LANGCHAIN_API_KEY"] = "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"
+os.environ["LANGCHAIN_API_KEY"] = "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"
 
 model = ChatZhipuAI(
     model="glm-4",
