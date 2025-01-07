@@ -224,13 +224,10 @@ def delete_conversation():
         # 尝试删除OBS中的对象
         resp = obs_client.deleteObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key)
         if resp.status < 300:
-            print(f"Conversation for user {username} deleted successfully.")
             return jsonify({'status': 'success'})
         else:
-            print(f"Failed to delete conversation for user {username}. Error: {resp.error_code} {resp.error_msg}")
             return jsonify({'error': f"删除对话失败: {resp.error_code} {resp.error_msg}"}), 500
     except Exception as e:
-        print(f"Exception occurred while deleting conversation for user {username}: {e}")
         return jsonify({'error': str(e)}), 500
 
 
