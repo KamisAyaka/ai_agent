@@ -1,4 +1,4 @@
-### 智能老师助手项目 README
+# 智能老师助手项目
 
 #### 项目背景
 随着人工智能技术的快速发展，教育领域对大模型的应用需求日益增加。传统的教育模式往往难以满足个性化学习的需求，尤其是在语言学习、知识问答和作业辅导等方面。
@@ -85,6 +85,7 @@
 
 3. 设置必要的环境变量（参考`config.py`中的示例）。
 - 本代码使用智谱大语言模型，需要申请API密钥。ZHIPUAI_API_KEY设置为申请得到的API密钥，也可以替换成其他的大语言模型。
+- langchain的API密钥设置为申请得到的API密钥。还有借助langchain实现的搜索引擎也需要申请相应的api。
 - OBS_ACCESS_KEY和OBS_SECRET_KEY设置为OBS的访问密钥和密钥。本代码基于华为云平台来完成云端的储存。请将这两处密钥替换成自己申请的API密钥。
 
 4. 启动应用程序：
@@ -375,6 +376,165 @@ The words that, which, who, whom, and whose are called relative pronouns. A rela
 'Who' - 'whose' - 'whom' - 'that' and 'which' - are relative pronouns. 'Where' is a relative adverb. There is often confusion about the use of who, whose, whom, that, which or where. We use who when referring to people or when we want to know the person. Who ate all the chocolates? Who called the police?
 Model output: content='Certainly! Let\'s tackle these relative pronoun questions with a smile!\n\n1. The man _____ helped me yesterday is my neighbor.\n   - A. who\n   - B. whom\n   - C. whose\n   - D. which\n   Answer: A. who\n   Explanation: Since "the man" is a person, we use "who" as the subject of the relative clause.\n\n2. Is there anyone _____ you can trust in this city?\n   - A. who\n   - B. whom\n   - C. whose\n   - D. which\n   Answer: B. whom\n   Explanation: In this sentence, "whom" is used because it is the object of the verb "trust" in the relative clause.\n\n3. The book _____ I borrowed from the library is very interesting.\n   - A. who\n   - B. whom\n   - C. whose\n   - D. which\n   Answer: D. which\n   Explanation: As "the book" is a thing, we use "which" to introduce the relative clause.\n\nRemember, "who" is for people when they are the subject, "whom" for people when they are the object, "whose" for possession, and "which" for things! Keep practicing, and you\'ll get the hang of it! 📚✨' additional_kwargs={} response_metadata={'token_usage': {'completion_tokens': 281, 'prompt_tokens': 1399, 'total_tokens': 1680}, 'model_name': 'glm-4', 'finish_reason': 'stop'} id='run-d5622e36-ca8f-4ec1-b904-fb344c34af42-0'
 ```
+
+---
+
+### 云服务
+### 华为云 OBS 集成
+
+#### 概述
+本项目集成了华为云对象存储服务（OBS），用于存储和管理用户数据及对话记录。通过 OBS，我们能够确保用户信息的安全性和持久化，同时提供高效的读写操作，支持用户的注册、登录以及对话历史的保存和加载。
+
+#### OBS 客户端配置
+在 `main.py` 文件中，首先创建了 OBS 客户端实例，用于与 OBS 进行交互。关键配置如下：
+
+```
+from obs import ObsClient
+
+# 创建OBS客户端
+obs_client = ObsClient(
+    access_key_id=OBS_ACCESS_KEY,
+    secret_access_key=OBS_SECRET_KEY,
+    server=Endpoint
+)
+```
+- **access_key_id**: 华为云 OBS 的访问密钥 ID。
+- **secret_access_key**: 华为云 OBS 的秘密密钥。
+- **server**: OBS 服务的终端节点（Endpoint）。
+
+#### 用户数据管理
+
+##### 用户注册与登录
+- **注册新用户**：当用户注册时，系统会将用户信息（如用户名和密码）保存到 OBS 中。
+  
+```
+  def save_user(user_id, user_data):
+      object_key = f'users/{user_id}.json'
+      user_data_json = json.dumps(user_data)
+      resp = obs_client.putContent(bucketName=OBS_BUCKET_NAME, objectKey=object_key, content=user_data_json)
+```
+- **加载用户信息**：当用户登录时，系统会从 OBS 中加载用户信息进行验证。
+  
+```
+  def load_user(user_id):
+      object_key = f'users/{user_id}.json'
+      try:
+          resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+          if resp.status < 300:
+              user_data_json = resp.body['buffer'].decode('utf-8')
+              user_data = json.loads(user_data_json)
+              return user_data
+          else:
+              return None
+  ```
+#### 对话记录管理
+
+##### 保存对话记录
+用户与智能老师的对话记录会被保存到 OBS 中，以便用户随时查看历史记录。
+
+```
+@app.route('/save_conversation', methods=['POST'])
+def save_conversation():
+    username = session['username']
+    data = request.get_json()
+    conversation = data.get('conversation')
+
+    if not conversation:
+        return jsonify({'error': '对话内容不能为空'}), 400
+
+    object_key = f'users/{username}.json'
+
+    try:
+        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+
+        if resp.status < 300:
+            user_data_json = resp.body['buffer'].decode('utf-8')
+            user_data = json.loads(user_data_json)
+        else:
+            user_data = {}
+
+        if 'conversation' in user_data:
+            user_data['conversation'] += '\n' + conversation
+        else:
+            user_data['conversation'] = conversation
+
+        # 保存更新后的数据到 OBS
+        obs_client.putContent(
+            bucketName=OBS_BUCKET_NAME,
+            objectKey=object_key,
+            content=json.dumps(user_data)
+        )
+
+        return jsonify({'status': 'success'})
+```
+##### 加载对话记录
+用户可以请求加载之前的对话记录，以保持上下文连贯性。
+
+```
+@app.route('/load_conversation', methods=['POST'])
+def load_conversation():
+    username = session['username']
+
+    object_key = f'users/{username}.json'
+
+    try:
+        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+        if resp.status < 300:
+            conversation = json.loads(resp.body['buffer'].decode('utf-8'))
+            c = conversation['conversation']
+            return jsonify({'conversation': c})
+        else:
+            return jsonify({'error': f"加载对话失败: {resp.error_code} {resp.error_msg}"}), 400
+```
+##### 删除对话记录
+用户可以选择删除对话记录，以清理不再需要的历史数据。
+
+```
+@app.route('/delete_conversation', methods=['POST'])
+def delete_conversation():
+    username = session.get('username')
+
+    if not username:
+        return jsonify({'error': '用户未登录'}), 403
+
+    object_key = f'users/{username}.json'
+
+    try:
+        # 尝试删除OBS中的对象
+        resp = obs_client.deleteObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key)
+        if resp.status < 300:
+            return jsonify({'status': 'success'})
+        else:
+            return jsonify({'error': f"删除对话失败: {resp.error_code} {resp.error_msg}"}), 500
+```
+#### 学习建议生成
+根据用户的对话记录，系统可以生成个性化的学习建议，并将这些建议返回给用户。
+
+```
+python
+@app.route('/get_learning_suggestion', methods=['POST'])
+def get_learning_suggestion():
+    username = session['username']
+
+    object_key = f'users/{username}.json'
+
+    try:
+        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+        if resp.status < 300:
+            conversation = json.loads(resp.body['buffer'].decode('utf-8'))
+            c = conversation.get('conversation', '')
+            prompt = f"{c}\n给我生成对应的学习建议"
+            response = get_response(app_suggestion, prompt)
+            return jsonify({"suggestion": response})
+        else:
+            return jsonify({'error': f"加载对话失败: {resp.error_code} {resp.error_msg}"}), 400
+    except Exception as e:
+        print(f"加载对话时出错: {e}")
+        return jsonify({'error': str(e)}), 500
+```
+通过上述集成，华为云 OBS 成为了本项目不可或缺的一部分，确保了用户数据的安全存储和高效管理，提升了用户体验。
+
+
 
 ### 团队分工
 
