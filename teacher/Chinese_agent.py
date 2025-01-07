@@ -9,6 +9,56 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 import re
 from pathlib import Path
 
+def load_poetry_knowledge_base(file_path: str) -> dict:
+    """
+    从 txt 文件中加载诗词知识库，并解析为字典格式。
+    字典的键是 "数字_作者_诗名"，值是诗词内容。
+    """
+    knowledge_base = {}
+    current_title = None
+    current_content = []
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            for line in file:
+                line = line.strip()
+                if not line:  # 跳过空行
+                    continue
+                if line.startswith(("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")) and "_" in line:
+                    # 如果当前有正在处理的诗词，保存到知识库
+                    if current_title and current_content:
+                        knowledge_base[current_title] = "\n".join(current_content)
+                        current_content = []
+                    # 新的诗词标题
+                    current_title = line
+                else:
+                    # 诗词内容
+                    current_content.append(line)
+            
+            # 处理最后一首诗词
+            if current_title and current_content:
+                knowledge_base[current_title] = "\n".join(current_content)
+    except FileNotFoundError:
+        print(f"错误：文件 {file_path} 未找到。")
+    except Exception as e:
+        print(f"加载知识库时发生错误：{e}")
+    
+    return knowledge_base
+
+
+
+# 获取当前脚本所在的目录
+current_directory = Path(__file__).parent
+
+file_path = current_directory / "poetry_knowledge_base.txt"
+if not file_path.exists():
+    print(f"错误：文件 {file_path} 不存在。")
+
+# 加载知识库
+knowledge_base = load_poetry_knowledge_base(current_directory / "poetry_knowledge_base.txt")
+
+
+
 # 添加TavilySearchResults工具
 tool = TavilySearchResults(max_results=2)
 tools = [tool]
@@ -27,6 +77,40 @@ max_length = 512
 
 # 初始化记忆保存器
 memory_saver = MemorySaver()
+
+# 从知识库中检索与查询相关的诗词内容
+def retrieve_poetry_from_knowledge_base(query: str, knowledge_base: dict) -> str:
+    # 遍历知识库，查找匹配的诗词
+    for title, content in knowledge_base.items():
+        if query in title or query in content:
+            return f"{title}\n{content}"
+    
+    return "未找到相关诗词内容。"
+
+def analyze_poetry(state: MessagesState):
+    print('analyze_poetry')
+    user_message = state["messages"][-2].content
+    
+    # 检查用户输入中是否包含“诗词”
+    if "诗词" in user_message:
+        # 使用正则表达式提取关键词（去除“诗词”和标点符号）
+        query = re.sub(r"[诗词：]", "", user_message).strip()
+        
+        # 从知识库中检索诗词内容
+        poetry_content = retrieve_poetry_from_knowledge_base(query, knowledge_base)
+        print(poetry_content)
+        
+        # 将检索到的诗词内容添加到消息中
+        state["messages"].append(HumanMessage(content=f"检索到的诗词内容：\n{poetry_content}"))
+        
+        # 设置下一个节点为生成回复
+        state["next_node"] = "generate_response"
+    else:
+        # 如果用户输入中不包含“诗词”，则直接进入生成回复环节
+        state["next_node"] = "generate_response"
+    
+    return state
+
 
 # 上下文（截取部分）
 def truncate_context(messages, max_length=10):
@@ -58,12 +142,18 @@ def analyze_emotion(state: MessagesState):
 
     state["messages"].append(HumanMessage(content=f"根据我的语气，你将以 {tone} 的方式回应。"))
     
-    match = re.search(r'作文(评分)?', cleaned_message, re.IGNORECASE)
-    print(f"Regex match result: {match}")  # 打印匹配结果
-    if match:
-        state["next_node"] = "evaluate_essay"
+    match1 = re.search(r'诗词', cleaned_message, re.IGNORECASE)
+    print(match1)
+    
+    if match1:
+        state["next_node"] = "analyze_poetry"
     else:
-        state["next_node"] = "generate_response"
+        match2 = re.search(r'作文(评分)?', cleaned_message, re.IGNORECASE)
+        print(f"Regex match result: {match2}")  # 打印匹配结果
+        if match2:
+            state["next_node"] = "evaluate_essay"
+        else:
+            state["next_node"] = "generate_response"
     
     return state
 
@@ -168,6 +258,43 @@ def generate_response_essay(state: MessagesState):
     # 返回更新后的消息列表
     return {"messages": state["messages"]}
 
+# 诗词问题
+def generate_response_poetry(state: MessagesState):
+    print('generate_response_poetry')
+    user_message = state["messages"][-3].content
+    print(user_message)
+    
+    # 使用 TavilySearchResults 检索用户输入
+    search_results = tool.invoke({"query": user_message})
+    context = "\n".join([result["content"] for result in search_results])
+    print(context)
+    
+    # 将检索到的背景信息添加到消息中
+    state["messages"].append(HumanMessage(content=f"背景信息：{context}"))
+    
+    # 上下文
+    truncated_messages = truncate_context(state["messages"])
+    
+    # 调用模型生成回复
+    model_output = model.invoke(truncated_messages)
+    
+    # 打印 model_output 的内容，检查其结构
+    print("Model output:", model_output)
+    
+    # 根据 model_output 的类型进行不同处理
+    if isinstance(model_output, AIMessage):
+        # 如果 model_output 是 AIMessage，直接使用它的 content
+        response_content = model_output.content
+    elif isinstance(model_output, dict) and 'content' in model_output:
+        # 如果 model_output 是字典，提取其中的 'content' 字段
+        response_content = model_output['content']
+    
+    # 将提取的内容封装为 AIMessage
+    state["messages"].append(AIMessage(content=response_content))
+    
+    # 返回更新后的消息列表
+    return {"messages": state["messages"]}
+
 # 其他问题
 def generate_response(state: MessagesState):
     print('generate_response')
@@ -240,11 +367,17 @@ workflow_chinese.add_node("evaluate_essay", evaluate_essay)
 # 添加选择评分标准节点
 workflow_chinese.add_node("select_evaluation_standard", select_evaluation_standard)
 
+# 添加诗词分析节点
+workflow_chinese.add_node("analyze_poetry", analyze_poetry)
+
 # 添加生成模型回复节点
 workflow_chinese.add_node("generate_response", generate_response)
 
 # 添加生成模型回复节点
 workflow_chinese.add_node("generate_response_essay", generate_response_essay)
+
+# 添加生成模型回复节点
+workflow_chinese.add_node("generate_response_poetry", generate_response_poetry)
 
 # 添加工具节点
 tool_node = ToolNode(tools=[tool])
@@ -264,6 +397,9 @@ workflow_chinese.add_edge("evaluate_essay", "select_evaluation_standard")
 
 # 添加从 select_evaluation_standard 到 generate_response 的边
 workflow_chinese.add_edge("select_evaluation_standard", "generate_response_essay")
+
+# 添加从 analyze_poetry 到 generate_response 的边
+workflow_chinese.add_edge("analyze_poetry", "generate_response_poetry")
 
 # 编译工作流
 app_chinese = workflow_chinese.compile(checkpointer=memory_saver)
