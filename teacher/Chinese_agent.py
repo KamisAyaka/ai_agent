@@ -86,7 +86,7 @@ def retrieve_poetry_from_knowledge_base(query: str, knowledge_base: dict) -> str
     return "未找到相关诗词内容。"
 
 def analyze_poetry(state: MessagesState):
-    print('analyze_poetry')
+    #print('analyze_poetry')
     user_message = state["messages"][-2].content
     
     # 检查用户输入中是否包含“诗词”
@@ -96,7 +96,7 @@ def analyze_poetry(state: MessagesState):
         
         # 从知识库中检索诗词内容
         poetry_content = retrieve_poetry_from_knowledge_base(query, knowledge_base)
-        print(poetry_content)
+        #print(poetry_content)
         
         # 将检索到的诗词内容添加到消息中
         state["messages"].append(HumanMessage(content=f"检索到的诗词内容：\n{poetry_content}"))
@@ -118,7 +118,7 @@ def truncate_context(messages, max_length=10):
 
 # 情感分析
 def analyze_emotion(state: MessagesState):
-    print('analyze_emotion')
+    #print('analyze_emotion')
     user_message = state["messages"][-1].content
     
     
@@ -144,18 +144,18 @@ def analyze_emotion(state: MessagesState):
         tone = "关心"
     else:
         tone = "中立"
-    print(f"情感分析结果: {emotion_label}, 分数: {emotion_score}, 语气: {tone}")
+    #print(f"情感分析结果: {emotion_label}, 分数: {emotion_score}, 语气: {tone}")
 
     state["messages"].append(HumanMessage(content=f"根据我的语气，你将以 {tone} 的方式回应。"))
     
     match1 = re.search(r'诗词', cleaned_message, re.IGNORECASE)
-    print(match1)
+    #print(match1)
     
     if match1:
         state["next_node"] = "analyze_poetry"
     else:
         match2 = re.search(r'作文(评分)?', cleaned_message, re.IGNORECASE)
-        print(f"Regex match result: {match2}")  # 打印匹配结果
+        #print(f"Regex match result: {match2}")  # 打印匹配结果
         if match2:
             state["next_node"] = "evaluate_essay"
         else:
@@ -165,26 +165,26 @@ def analyze_emotion(state: MessagesState):
 
 # 评分标准
 def select_evaluation_standard(state: MessagesState):
-    print('select_evaluation_standard')
+    #print('select_evaluation_standard')
     user_message = state["messages"][-3].content
     # 计算字数
     word_count = len(user_message)
-    print(word_count)
+    #print(word_count)
     
     # 获取当前脚本所在的目录
     current_directory = Path(__file__).parent
     
     # 提取用户输入中的关键词
     if "小学" in user_message:
-        print("小学")
+        #print("小学")
         standard = "小学"
         criteria_file = current_directory / "primary_school_chinese_criteria.txt"  # 小学评分标准文件
     elif "初中" in user_message:
-        print("初中")
+        #print("初中")
         standard = "初中"
         criteria_file = current_directory / "middle_school_chinese_criteria.txt"  # 初中评分标准文件
     elif "高中" in user_message:
-        print("高中")
+        #print("高中")
         standard = "高中"
         criteria_file = current_directory / "high_school_chinese_criteria.txt"  # 高中评分标准文件
     else:
@@ -198,7 +198,7 @@ def select_evaluation_standard(state: MessagesState):
     except FileNotFoundError:
         criteria = f"未找到 {standard} 的评分标准文件。"
         
-    print(criteria)
+    #print(criteria)
     
     # 将评分标准添加到消息中
     state["messages"].append(HumanMessage(content=f"作文字数：{word_count}。一定要按照评分标准批改作文。请务必遵守<一定要按照评分标准批改作文>。评分标准：{criteria}"))
@@ -207,7 +207,7 @@ def select_evaluation_standard(state: MessagesState):
 
 # 初步检查
 def evaluate_essay(state: MessagesState):
-    print('evaluate_essay')
+    #print('evaluate_essay')
     essay_text = state["messages"][-2].content.replace("作文：", "")
     evaluation_result = grammar_checker.check(essay_text)
     
@@ -215,7 +215,7 @@ def evaluate_essay(state: MessagesState):
     
     wrong = len(evaluation_result)
     
-    print(f"Essay suggestions: {suggestions}")
+    #print(f"Essay suggestions: {suggestions}")
 
     # 返回评分和建议
     state["messages"].append(HumanMessage(content=f"经过初步检查，错误有 {wrong} 处。改进建议：\n" + "\n".join(suggestions)))
@@ -225,7 +225,7 @@ def evaluate_essay(state: MessagesState):
 
 # 作文批改结论
 def generate_response_essay(state: MessagesState):
-    print('generate_response_essay')
+    #print('generate_response_essay')
     
     # 再加上搜索，信息太多，影响评分
     '''
@@ -266,14 +266,14 @@ def generate_response_essay(state: MessagesState):
 
 # 诗词问题
 def generate_response_poetry(state: MessagesState):
-    print('generate_response_poetry')
+    #print('generate_response_poetry')
     user_message = state["messages"][-3].content
-    print(user_message)
+    #print(user_message)
     
     # 使用 TavilySearchResults 检索用户输入
     search_results = tool.invoke({"query": user_message})
     context = "\n".join([result["content"] for result in search_results])
-    print(context)
+    #print(context)
     
     # 将检索到的背景信息添加到消息中
     state["messages"].append(HumanMessage(content=f"背景信息：{context}"))
@@ -303,14 +303,14 @@ def generate_response_poetry(state: MessagesState):
 
 # 其他问题
 def generate_response(state: MessagesState):
-    print('generate_response')
+    #print('generate_response')
     user_message = state["messages"][-2].content
-    print(user_message)
+    #print(user_message)
     
     # 使用 TavilySearchResults 检索用户输入
     search_results = tool.invoke({"query": user_message})
     context = "\n".join([result["content"] for result in search_results])
-    print(context)
+    #print(context)
     
     # 将检索到的背景信息添加到消息中
     state["messages"].append(HumanMessage(content=f"背景信息：{context}"))
