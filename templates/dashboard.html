@@ -166,6 +166,7 @@
                 <button id="save-conversation-button">保存对话</button>
                 <button id="load-conversation-button">加载对话</button>
                 <button id="clear-conversation-button">清除对话</button>
+                <button id="delete-conversation-btn">删除历史对话</button>
             </div>
         </nav>
         <div id="main-content">
@@ -331,6 +332,23 @@
 
             // 清除对话按钮
             document.getElementById("clear-conversation-button").addEventListener("click", clearChatHistory); // 绑定清除对话按钮事件
+            document.getElementById('delete-conversation-btn').addEventListener('click', function() {
+                        fetch('/delete_conversation', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert('历史对话已成功删除！');
+                            } else {
+                                alert('删除历史对话失败：' + data.error);
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                    });
 
             // 新增学习建议按钮事件处理
             document.getElementById("learning-suggestion").addEventListener("click", () => {
@@ -345,6 +363,7 @@
                     fetchLearningSuggestion();
                 }
             });
+
 
             // 新增获取学习建议的函数
             function fetchLearningSuggestion() {

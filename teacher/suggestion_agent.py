@@ -1,21 +1,24 @@
-from config import model
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_community.tools.tavily_search import TavilySearchResults
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
-from langchain_community.tools.tavily_search import TavilySearchResults
+
+from config import model
 
 # 定义学习建议的graph
 workflow_suggestion = StateGraph(state_schema=MessagesState)
+
 
 # 定义学习建议的函数
 def call_suggestion_teacher(state: MessagesState):
     response = llm_with_tools.invoke(state["messages"])
     return {"messages": response}
 
+
 # 定义预训练函数
 def pretrain_suggestion_teacher():
     pass
+
 
 # 调用预训练函数
 pretrain_suggestion_teacher()

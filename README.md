@@ -9,7 +9,6 @@
 - **templates/**: 包含HTML模板文件，用于渲染前端页面。
   - `login.html`: 用户登录页面。
   - `register.html`: 用户注册页面。
-  - `index.html`: 首页，提供选择不同老师的界面。
   - `dashboard.html`: 用户仪表盘，显示聊天历史和输入框。
 - **teacher/**: 包含各个学科老师的实现代码和配套文件。
   - `Chinese_agent.py`: 语文老师的具体实现，包括诗词分析、作文评分等功能。
