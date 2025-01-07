@@ -1,13 +1,10 @@
 import json
 
-from langchain_core.messages import HumanMessage
-
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
-
+from langchain_core.messages import HumanMessage
 from obs import ObsClient
-from config import OBS_ACCESS_KEY, OBS_SECRET_KEY, OBS_BUCKET_NAME, Endpoint
-from langchain_community.document_loaders.obs_file import OBSFileLoader
 
+from config import OBS_ACCESS_KEY, OBS_SECRET_KEY, OBS_BUCKET_NAME, Endpoint
 from teacher.Chinese_agent import app_chinese
 from teacher.English_agent import app_english
 from teacher.Math_agent import app_math
@@ -158,10 +155,10 @@ def get_response_route():
 
 @app.route('/save_conversation', methods=['POST'])
 def save_conversation():
-    username = session['username'] 
+    username = session['username']
 
     data = request.get_json()
-    conversation = data.get('conversation') 
+    conversation = data.get('conversation')
 
     if not conversation:
         return jsonify({'error': '对话内容不能为空'}), 400
@@ -188,7 +185,7 @@ def save_conversation():
             objectKey=object_key,
             content=json.dumps(user_data)
         )
-        
+
         return jsonify({'status': 'success'})
 
     except Exception as e:
@@ -197,7 +194,7 @@ def save_conversation():
 
 @app.route('/load_conversation', methods=['POST'])
 def load_conversation():
-    username = session['username'] 
+    username = session['username']
 
     object_key = f'users/{username}.json'
 
@@ -213,9 +210,33 @@ def load_conversation():
         print(f"加载对话时出错: {e}")
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/delete_conversation', methods=['POST'])
+def delete_conversation():
+    username = session.get('username')
+
+    if not username:
+        return jsonify({'error': '用户未登录'}), 403
+
+    object_key = f'users/{username}.json'
+
+    try:
+        # 尝试删除OBS中的对象
+        resp = obs_client.deleteObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key)
+        if resp.status < 300:
+            print(f"Conversation for user {username} deleted successfully.")
+            return jsonify({'status': 'success'})
+        else:
+            print(f"Failed to delete conversation for user {username}. Error: {resp.error_code} {resp.error_msg}")
+            return jsonify({'error': f"删除对话失败: {resp.error_code} {resp.error_msg}"}), 500
+    except Exception as e:
+        print(f"Exception occurred while deleting conversation for user {username}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/get_learning_suggestion', methods=['POST'])
 def get_learning_suggestion():
-    username = session['username'] 
+    username = session['username']
 
     object_key = f'users/{username}.json'
 
@@ -232,6 +253,7 @@ def get_learning_suggestion():
     except Exception as e:
         print(f"加载对话时出错: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)
