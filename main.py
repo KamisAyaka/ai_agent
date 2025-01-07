@@ -11,6 +11,7 @@ from langchain_community.document_loaders.obs_file import OBSFileLoader
 from teacher.Chinese_agent import app_chinese
 from teacher.English_agent import app_english
 from teacher.Math_agent import app_math
+from teacher.suggestion_agent import app_suggestion
 
 
 def get_response(app, query):
@@ -214,6 +215,25 @@ def load_conversation():
         print(f"加载对话时出错: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/get_learning_suggestion', methods=['POST'])
+def get_learning_suggestion():
+    username = session['username'] 
+
+    object_key = f'users/{username}.json'
+
+    try:
+        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+        if resp.status < 300:
+            conversation = json.loads(resp.body['buffer'].decode('utf-8'))
+            c = conversation.get('conversation', '')
+            prompt = f"{c}\n给我生成对应的学习建议"
+            response = get_response(app_suggestion, prompt)
+            return jsonify({"suggestion": response})
+        else:
+            return jsonify({'error': f"加载对话失败: {resp.error_code} {resp.error_msg}"}), 400
+    except Exception as e:
+        print(f"加载对话时出错: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
