@@ -74,10 +74,8 @@ def load_user(user_id):
         if resp.status < 300:
             user_data_json = resp.body['buffer'].decode('utf-8')
             user_data = json.loads(user_data_json)
-            print(f"Loaded user data for {user_id} from path: {object_key}, data: {user_data}")  # 调试信息
             return user_data
         else:
-            print(f"Failed to load user {user_id} from path: {object_key}. Error: {resp.error_code} {resp.error_msg}")
             return None
     except Exception as e:
         print(f"Exception occurred while loading user {user_id}: {e}")

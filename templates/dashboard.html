@@ -6,132 +6,148 @@
     <title>智能老师助手</title>
     <style>
         .mcd-menu li.selected {
-            background-color: #28a745;
+            background-color: #e65c00;
             color: white;
-          }
-          
-          /* 当点击 AI 教学助手时，显示的提示信息样式 */
-          #placeholder-message {
+        }
+
+        /* 当点击 AI 教学助手时，显示的提示信息样式 */
+        #placeholder-message {
             font-size: 2em; /* 字体加大 */
             color: #888;
             padding: 2em;
             text-align: center;
-          }
-          
-          .container {
+        }
+
+        .container {
             display: flex;
             height: 100vh;
-          }
-          
-          nav {
+        }
+
+        nav {
             width: 20%;
-            background-color: #007bff;
+            background-color: #000000; /* 左侧栏背景颜色为黑色 */
             color: white;
             overflow-y: auto;
-          }
-          
-          .mcd-menu {
+            position: relative; /* 保证按钮可以在底部绝对定位 */
+        }
+
+        .mcd-menu {
             list-style: none;
             padding: 0;
             margin: 0;
-          }
-          
-          .mcd-menu li {
+        }
+
+        .mcd-menu li {
             padding: 1em;
             cursor: pointer;
             border-bottom: 1px solid #444;
             transition: background-color 0.3s, font-size 0.3s;
-          }
-          
-          .mcd-menu li:hover {
-            background-color: #28a745;
-          }
-          
-          .mcd-menu li.selected {
+        }
+
+        .mcd-menu li:hover {
+            background-color: #e65c00;
+        }
+
+        .mcd-menu li.selected {
             background-color: #DFDBD9;
-            color: #007bff;
-          }
-          
-          #ai-assistant {
+            color: #e65c00;
+        }
+
+        #ai-assistant {
             font-size: 1.5em; /* 字体变大 */
-          }
-          
-          #main-content {
+        }
+
+        #main-content {
             width: 80%;
             display: flex;
             flex-direction: column;
-            background-color: #DFDBD9;
+            background-color: #003366; /* 右侧对话区为藏青色 */
             justify-content: flex-start; /* 更符合顶部对齐 */
             align-items: stretch; /* 使容器填满整个空间 */
-          }
-          
-          .chat-history {
+            color: white; /* 字体颜色改为白色 */
+        }
+
+        .chat-history {
             flex: 1;
             padding: 1em;
             overflow-y: auto;
-            background-color: #f4f4f4;
+            background-color: #001f33; /* 深藏青色背景 */
             text-align: left; /* 左对齐 */
             border-bottom: 1px solid #ccc; /* 给聊天区域增加下边框 */
-          }
-          
-          .chat-history div {
+        }
+
+        .chat-history div {
             margin-bottom: 1em;
-          }
-          
-          .input-container {
+        }
+
+        .input-container {
             display: flex;
             padding: 1em;
-            background-color: #fff;
+            background-color: #001f33; /* 深藏青色背景 */
             border-top: 1px solid #ccc;
-          }
-          
-          input[type="text"] {
+        }
+
+        input[type="text"] {
             flex: 1;
             padding: 0.5em;
             margin-right: 0.5em;
             border-radius: 4px;  /* 增加圆角 */
             border: 1px solid #ccc;  /* 输入框边框 */
-          }
-          
-          button {
+        }
+
+        button {
             padding: 0.5em 1em;
-            background-color: #28a745;
+            background-color: #FF6600; /* 按钮为橘色 */
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s;
-          }
-          
-          button:hover {
-            background-color: #218838; /* 提交按钮的悬停效果 */
-          }
-          
-          .hidden {
+        }
+
+        button:hover {
+            background-color: #e65c00; /* 按钮悬停效果 */
+        }
+
+        .hidden {
             display: none;
-          }
-          
-          #placeholder-message {
+        }
+
+        #placeholder-message {
             font-size: 1.2em;
             color: #888;
             padding: 2em;
-          }
-          
-          /* 适应不同屏幕的布局 */
-          @media screen and (max-width: 768px) {
+        }
+
+        /* 适应不同屏幕的布局 */
+        @media screen and (max-width: 768px) {
             .container {
                 flex-direction: column;
             }
-          
+
             nav {
                 width: 100%;
                 height: auto;
             }
-          
+
             #main-content {
                 width: 100%;
             }
-          }          
+        }
+
+        /* 将按钮容器定位到左侧栏底部 */
+        .button-container {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            padding: 0 1em;
+            box-sizing: border-box;
+        }
+
+        .button-container button {
+            width: 100%;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -145,6 +161,12 @@
                 <li id="learning-suggestion" class="menu-item">学习建议</li> <!-- 新增学习建议按钮 -->
                 <li id="logout" class="menu-item">登出</li>
             </ul>
+            <!-- 将按钮放到左侧栏的底部 -->
+            <div class="button-container">
+                <button id="save-conversation-button">保存对话</button>
+                <button id="load-conversation-button">加载对话</button>
+                <button id="clear-conversation-button">清除对话</button>
+            </div>
         </nav>
         <div id="main-content">
             <div id="chat-history" class="chat-history">
@@ -153,11 +175,6 @@
             <div class="input-container hidden" id="input-container">
                 <input type="text" id="user-input" placeholder="请输入您的问题">
                 <button id="submit-button">提交</button>
-            </div>
-            <div class="button-container">
-                <button id="save-conversation-button">保存对话</button>
-                <button id="load-conversation-button">加载对话</button>
-                <button id="clear-conversation-button">清除对话</button>
             </div>
             <div id="response"></div>
         </div>
@@ -168,7 +185,7 @@
                 "math-teacher": "1",
                 "chinese-teacher": "2",
                 "english-teacher": "3",
-                "learning-suggestion": "4", // 新增学习建议映射
+                "learning-suggestion": "4",
             };
           
             const queryInput = document.getElementById("user-input");
