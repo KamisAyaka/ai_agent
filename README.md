@@ -382,6 +382,6 @@ Model output: content='Certainly! Let\'s tackle these relative pronoun questions
 
 黄冠富：实现了基本框架的搭建和对语言模型的调用。将前端返回的数据保存到华为云中。
 
-袁滨
+袁滨：实现用户登录和学习建议生成，将前端各部分进行整合。从华为云中读取数据实现前端展示。
 
 左庭宇：后端负责语文老师智能体和英语老师智能体。
