@@ -9,12 +9,12 @@
 - **templates/**: 包含HTML模板文件，用于渲染前端页面。
   - `login.html`: 用户登录页面。
   - `register.html`: 用户注册页面。
-  - `index.html`: 首页，提供选择不同老师的界面。
-  - `dashboard.html`: 用户仪表盘，显示聊天历史和输入框。
+  - `dashboard.html`: 用户仪表盘，显示聊天历史和输入框，实现主要的对话功能。
 - **teacher/**: 包含各个学科老师的实现代码和配套文件。
   - `Chinese_agent.py`: 语文老师的具体实现，包括诗词分析、作文评分等功能。
   - `English_agent.py`: 英语老师的具体实现，包括语法检查、情感分析等功能。
   - `Math_agent.py`: 数学老师的具体实现，主要处理数学问题的解答。
+  - `suggestion_agent.py`: 学习建议生成的具体实现，用于根据用户的对话生成学习建议。
   - `high_school_chinese_criteria.txt`：高考语文作文评分标准。
   - `high_school_english_criteria.txt`：高考英语作文评分标准。
   - `middle_school_chinese_criteria.txt`：中考语文作文评分标准。
