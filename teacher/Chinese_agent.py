@@ -1,22 +1,17 @@
-import re
-from pathlib import Path
-
-from langchain_community.tools.tavily_search import TavilySearchResults
+from config import model
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
-from langgraph.prebuilt import ToolNode
+from transformers import pipeline, AutoTokenizer
 from language_tool_python import LanguageTool
-from transformers import pipeline
+from langgraph.prebuilt import ToolNode, tools_condition
+from langchain_community.tools.tavily_search import TavilySearchResults
+import re
+from pathlib import Path
 
-from config import model
-
-
+# 从 txt 文件中加载诗词知识库，并解析为字典格式
+# 字典的键是 "数字_作者_诗名"，值是诗词内容
 def load_poetry_knowledge_base(file_path: str) -> dict:
-    """
-    从 txt 文件中加载诗词知识库，并解析为字典格式。
-    字典的键是 "数字_作者_诗名"，值是诗词内容。
-    """
     knowledge_base = {}
     current_title = None
     current_content = []
@@ -37,7 +32,7 @@ def load_poetry_knowledge_base(file_path: str) -> dict:
                 else:
                     # 诗词内容
                     current_content.append(line)
-
+            
             # 处理最后一首诗词
             if current_title and current_content:
                 knowledge_base[current_title] = "\n".join(current_content)
@@ -45,8 +40,9 @@ def load_poetry_knowledge_base(file_path: str) -> dict:
         print(f"错误：文件 {file_path} 未找到。")
     except Exception as e:
         print(f"加载知识库时发生错误：{e}")
-
+    
     return knowledge_base
+
 
 
 # 获取当前脚本所在的目录
@@ -58,6 +54,8 @@ if not file_path.exists():
 
 # 加载知识库
 knowledge_base = load_poetry_knowledge_base(current_directory / "poetry_knowledge_base.txt")
+
+
 
 # 添加TavilySearchResults工具
 tool = TavilySearchResults(max_results=2)
@@ -78,39 +76,37 @@ max_length = 512
 # 初始化记忆保存器
 memory_saver = MemorySaver()
 
-
 # 从知识库中检索与查询相关的诗词内容
 def retrieve_poetry_from_knowledge_base(query: str, knowledge_base: dict) -> str:
     # 遍历知识库，查找匹配的诗词
     for title, content in knowledge_base.items():
         if query in title or query in content:
             return f"{title}\n{content}"
-
+    
     return "未找到相关诗词内容。"
-
 
 def analyze_poetry(state: MessagesState):
     print('analyze_poetry')
     user_message = state["messages"][-2].content
-
+    
     # 检查用户输入中是否包含“诗词”
     if "诗词" in user_message:
         # 使用正则表达式提取关键词（去除“诗词”和标点符号）
         query = re.sub(r"[诗词：]", "", user_message).strip()
-
+        
         # 从知识库中检索诗词内容
         poetry_content = retrieve_poetry_from_knowledge_base(query, knowledge_base)
         print(poetry_content)
-
+        
         # 将检索到的诗词内容添加到消息中
         state["messages"].append(HumanMessage(content=f"检索到的诗词内容：\n{poetry_content}"))
-
+        
         # 设置下一个节点为生成回复
         state["next_node"] = "generate_response"
     else:
         # 如果用户输入中不包含“诗词”，则直接进入生成回复环节
         state["next_node"] = "generate_response"
-
+    
     return state
 
 
@@ -120,17 +116,24 @@ def truncate_context(messages, max_length=10):
         return messages[-max_length:]
     return messages
 
-
 # 情感分析
 def analyze_emotion(state: MessagesState):
     print('analyze_emotion')
     user_message = state["messages"][-1].content
-
+    
+    
+    
     # 去除换行符和多余的空白字符
     cleaned_message = user_message.replace('\n', ' ').strip()
-
+    
+    # 使用分词器截断输入文本
+    inputs = tokenizer(user_message, return_tensors="pt", truncation=True, max_length=max_length)
+    
+    # 将截断后的文本重新组合为字符串
+    truncated_message = tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=True)
+    
     # 使用中文情感分析器进行情感分析
-    emotion_result = emotion_classifier(cleaned_message)[0]
+    emotion_result = emotion_classifier(truncated_message)[0]
     emotion_label = emotion_result["label"]
     emotion_score = emotion_result["score"]
 
@@ -144,10 +147,10 @@ def analyze_emotion(state: MessagesState):
     print(f"情感分析结果: {emotion_label}, 分数: {emotion_score}, 语气: {tone}")
 
     state["messages"].append(HumanMessage(content=f"根据我的语气，你将以 {tone} 的方式回应。"))
-
+    
     match1 = re.search(r'诗词', cleaned_message, re.IGNORECASE)
     print(match1)
-
+    
     if match1:
         state["next_node"] = "analyze_poetry"
     else:
@@ -157,9 +160,8 @@ def analyze_emotion(state: MessagesState):
             state["next_node"] = "evaluate_essay"
         else:
             state["next_node"] = "generate_response"
-
+    
     return state
-
 
 # 评分标准
 def select_evaluation_standard(state: MessagesState):
@@ -168,10 +170,10 @@ def select_evaluation_standard(state: MessagesState):
     # 计算字数
     word_count = len(user_message)
     print(word_count)
-
+    
     # 获取当前脚本所在的目录
     current_directory = Path(__file__).parent
-
+    
     # 提取用户输入中的关键词
     if "小学" in user_message:
         print("小学")
@@ -188,47 +190,43 @@ def select_evaluation_standard(state: MessagesState):
     else:
         # 如果用户未明确指定，则由模型判定作文阶段
         essay_text = state["messages"][-2].content  # 获取作文内容
-
+    
     # 读取评分标准文件
     try:
         with open(criteria_file, "r", encoding="utf-8") as file:
             criteria = file.read()
     except FileNotFoundError:
         criteria = f"未找到 {standard} 的评分标准文件。"
-
+        
     print(criteria)
-
+    
     # 将评分标准添加到消息中
-    state["messages"].append(HumanMessage(
-        content=f"作文字数：{word_count}。一定要按照评分标准批改作文。请务必遵守<一定要按照评分标准批改作文>。评分标准：{criteria}"))
-
+    state["messages"].append(HumanMessage(content=f"作文字数：{word_count}。一定要按照评分标准批改作文。请务必遵守<一定要按照评分标准批改作文>。评分标准：{criteria}"))
+    
     return state
-
 
 # 初步检查
 def evaluate_essay(state: MessagesState):
     print('evaluate_essay')
     essay_text = state["messages"][-2].content.replace("作文：", "")
     evaluation_result = grammar_checker.check(essay_text)
-
+    
     suggestions = [match.message for match in evaluation_result]
-
+    
     wrong = len(evaluation_result)
-
+    
     print(f"Essay suggestions: {suggestions}")
 
     # 返回评分和建议
-    state["messages"].append(
-        HumanMessage(content=f"经过初步检查，错误有 {wrong} 处。改进建议：\n" + "\n".join(suggestions)))
-
+    state["messages"].append(HumanMessage(content=f"经过初步检查，错误有 {wrong} 处。改进建议：\n" + "\n".join(suggestions)))
+    
     # 返回更新后的状态
     return state
-
 
 # 作文批改结论
 def generate_response_essay(state: MessagesState):
     print('generate_response_essay')
-
+    
     # 再加上搜索，信息太多，影响评分
     '''
     user_message = state["messages"][-4].content
@@ -242,15 +240,16 @@ def generate_response_essay(state: MessagesState):
     # 将检索到的背景信息添加到消息中
     state["messages"].append(HumanMessage(content=f"背景信息：{context}"))
     '''
-
+    
+    
     # 上下文
     truncated_messages = truncate_context(state["messages"])
-
+    
     model_output = model.invoke(truncated_messages)
-
+    
     # 打印 model_output 的内容，检查其结构
     print("Model output:", model_output)
-
+    
     # 根据 model_output 的类型进行不同处理
     if isinstance(model_output, AIMessage):
         # 如果 model_output 是 AIMessage，直接使用它的 content
@@ -258,37 +257,36 @@ def generate_response_essay(state: MessagesState):
     elif isinstance(model_output, dict) and 'content' in model_output:
         # 如果 model_output 是字典，提取其中的 'content' 字段
         response_content = model_output['content']
-
+    
     # 将提取的内容封装为 AIMessage
     state["messages"].append(AIMessage(content=response_content))
-
+       
     # 返回更新后的消息列表
     return {"messages": state["messages"]}
-
 
 # 诗词问题
 def generate_response_poetry(state: MessagesState):
     print('generate_response_poetry')
     user_message = state["messages"][-3].content
     print(user_message)
-
+    
     # 使用 TavilySearchResults 检索用户输入
     search_results = tool.invoke({"query": user_message})
     context = "\n".join([result["content"] for result in search_results])
     print(context)
-
+    
     # 将检索到的背景信息添加到消息中
     state["messages"].append(HumanMessage(content=f"背景信息：{context}"))
-
+    
     # 上下文
     truncated_messages = truncate_context(state["messages"])
-
+    
     # 调用模型生成回复
     model_output = model.invoke(truncated_messages)
-
+    
     # 打印 model_output 的内容，检查其结构
     print("Model output:", model_output)
-
+    
     # 根据 model_output 的类型进行不同处理
     if isinstance(model_output, AIMessage):
         # 如果 model_output 是 AIMessage，直接使用它的 content
@@ -296,37 +294,36 @@ def generate_response_poetry(state: MessagesState):
     elif isinstance(model_output, dict) and 'content' in model_output:
         # 如果 model_output 是字典，提取其中的 'content' 字段
         response_content = model_output['content']
-
+    
     # 将提取的内容封装为 AIMessage
     state["messages"].append(AIMessage(content=response_content))
-
+    
     # 返回更新后的消息列表
     return {"messages": state["messages"]}
-
 
 # 其他问题
 def generate_response(state: MessagesState):
     print('generate_response')
     user_message = state["messages"][-2].content
     print(user_message)
-
+    
     # 使用 TavilySearchResults 检索用户输入
     search_results = tool.invoke({"query": user_message})
     context = "\n".join([result["content"] for result in search_results])
     print(context)
-
+    
     # 将检索到的背景信息添加到消息中
     state["messages"].append(HumanMessage(content=f"背景信息：{context}"))
-
+    
     # 上下文
     truncated_messages = truncate_context(state["messages"])
-
+    
     # 调用模型生成回复
     model_output = model.invoke(truncated_messages)
-
+    
     # 打印 model_output 的内容，检查其结构
     print("Model output:", model_output)
-
+    
     # 根据 model_output 的类型进行不同处理
     if isinstance(model_output, AIMessage):
         # 如果 model_output 是 AIMessage，直接使用它的 content
@@ -334,12 +331,13 @@ def generate_response(state: MessagesState):
     elif isinstance(model_output, dict) and 'content' in model_output:
         # 如果 model_output 是字典，提取其中的 'content' 字段
         response_content = model_output['content']
-
+    
     # 将提取的内容封装为 AIMessage
     state["messages"].append(AIMessage(content=response_content))
-
+    
     # 返回更新后的消息列表
     return {"messages": state["messages"]}
+
 
 
 # 定义预训练函数
@@ -354,7 +352,6 @@ def pretrain_chinese_teacher():
     for data in pretrain_data:
         model.invoke(data["messages"])
 
-
 # 调用预训练函数
 pretrain_chinese_teacher()
 
@@ -368,7 +365,7 @@ workflow_chinese.add_node("start", lambda state: {"messages": state["messages"]}
 workflow_chinese.add_node("analyze_emotion", analyze_emotion)
 
 # 添加知识库检索节点
-# workflow_chinese.add_node("retrieve_knowledge", retrieve_knowledge)
+#workflow_chinese.add_node("retrieve_knowledge", retrieve_knowledge)
 
 # 添加作文评估节点
 workflow_chinese.add_node("evaluate_essay", evaluate_essay)
