@@ -365,53 +365,27 @@ pretrain_chinese_teacher()
 # 定义语文老师的graph
 workflow_chinese = StateGraph(state_schema=MessagesState)
 
-# 添加初始节点
+# 添加节点
 workflow_chinese.add_node("start", lambda state: {"messages": state["messages"]})
-
-# 添加情感分析节点
 workflow_chinese.add_node("analyze_emotion", analyze_emotion)
-
-# 添加知识库检索节点
-# workflow_chinese.add_node("retrieve_knowledge", retrieve_knowledge)
-
-# 添加作文评估节点
 workflow_chinese.add_node("evaluate_essay", evaluate_essay)
-
-# 添加选择评分标准节点
 workflow_chinese.add_node("select_evaluation_standard", select_evaluation_standard)
-
-# 添加诗词分析节点
 workflow_chinese.add_node("analyze_poetry", analyze_poetry)
-
-# 添加生成模型回复节点
 workflow_chinese.add_node("generate_response", generate_response)
-
-# 添加生成模型回复节点
 workflow_chinese.add_node("generate_response_essay", generate_response_essay)
-
-# 添加生成模型回复节点
 workflow_chinese.add_node("generate_response_poetry", generate_response_poetry)
 
-# 添加工具节点
 tool_node = ToolNode(tools=[tool])
 workflow_chinese.add_node("tools", tool_node)
 
-# 初始边
+# 添加边
 workflow_chinese.add_edge(START, "analyze_emotion")
-
-# 添加状态转移边
 workflow_chinese.add_conditional_edges(
     "analyze_emotion",
     lambda state: state.get("next_node", "generate_response")
 )
-
-# 添加从 evaluate_essay 到 select_evaluation_standard 的边
 workflow_chinese.add_edge("evaluate_essay", "select_evaluation_standard")
-
-# 添加从 select_evaluation_standard 到 generate_response 的边
 workflow_chinese.add_edge("select_evaluation_standard", "generate_response_essay")
-
-# 添加从 analyze_poetry 到 generate_response 的边
 workflow_chinese.add_edge("analyze_poetry", "generate_response_poetry")
 
 # 编译工作流

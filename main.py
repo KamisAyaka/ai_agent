@@ -166,7 +166,11 @@ def save_conversation():
     object_key = f'users/{username}.json'
 
     try:
-        resp = obs_client.getObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key, loadStreamInMemory=True)
+        resp = obs_client.getObject(
+            bucketName=OBS_BUCKET_NAME, 
+            objectKey=object_key, 
+            loadStreamInMemory=True
+        )
 
         if resp.status < 300:
             user_data_json = resp.body['buffer'].decode('utf-8')
@@ -222,7 +226,10 @@ def delete_conversation():
 
     try:
         # 尝试删除OBS中的对象
-        resp = obs_client.deleteObject(bucketName=OBS_BUCKET_NAME, objectKey=object_key)
+        resp = obs_client.deleteObject(
+            bucketName=OBS_BUCKET_NAME, 
+            objectKey=object_key
+        )
         if resp.status < 300:
             return jsonify({'status': 'success'})
         else:
@@ -242,7 +249,7 @@ def get_learning_suggestion():
         if resp.status < 300:
             conversation = json.loads(resp.body['buffer'].decode('utf-8'))
             c = conversation.get('conversation', '')
-            prompt = f"{c}\n给我生成对应的语文数学和英语的学习建议"
+            prompt = f"{c}\n给我生成对应的语文数学和英语学习建议"
             response = get_response(app_suggestion, prompt)
             return jsonify({"suggestion": response})
         else:
