@@ -242,7 +242,7 @@ def get_learning_suggestion():
         if resp.status < 300:
             conversation = json.loads(resp.body['buffer'].decode('utf-8'))
             c = conversation.get('conversation', '')
-            prompt = f"{c}\n给我生成对应的学习建议"
+            prompt = f"{c}\n给我生成对应的语文数学和英语的学习建议"
             response = get_response(app_suggestion, prompt)
             return jsonify({"suggestion": response})
         else:

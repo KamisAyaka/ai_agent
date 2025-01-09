@@ -248,11 +248,10 @@
                         });
                         renderChatHistory();
                     } else {
-                        alert('加载对话失败: ' + (data.error || '未知错误'));
+                        alert('未找到历史对话。');
                     }
                 })
                 .catch((error) => {
-                    console.error('加载对话时出错:', error);
                     alert('加载对话时出错，请稍后重试。');
                 });
             }
